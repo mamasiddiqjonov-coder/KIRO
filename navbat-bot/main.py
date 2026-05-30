@@ -11,6 +11,7 @@ va Telegram'ga ulaydi.
 """
 
 import logging
+import asyncio
 
 from telegram import Update
 from telegram.ext import (
@@ -59,6 +60,14 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
+    # Python 3.12+ / 3.14 da event loop avtomatik yaratilmaydi.
+    # Shuning uchun o'zimiz yaratib, joriy thread'ga ulaymiz.
+    # Bu "There is no current event loop" xatosini oldini oladi.
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
     # --- Qismlarni quramiz ---
     db = Database(config.DB_PATH)
     booking = BookingManager(
