@@ -1,0 +1,22 @@
+# Maxfiy sozlamalar — hech qachon yuklanmasin!
+config.py
+
+# Ma'lumotlar bazasi
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Muhit
+.env
+
+# IDE
+.vscode/
+.idea/
