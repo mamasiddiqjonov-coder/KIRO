@@ -11,12 +11,14 @@ Eslatma: o'z biznesingizga moslab xizmatlarni o'zgartiring yoki bot ichida
 import config
 from bot.database import Database
 
-# Namuna xizmatlar: (nom, narx so'mda, davomiylik daqiqada)
+# Namuna xizmatlar: (nom, narx, davomiylik daqiqada)
+# Narx erkin matn: toza raqam yozsangiz bot chiroyli qiladi ("40000" -> "40 000 so'm"),
+# yoki o'zingiz belgili yozasiz ("от 30 000", "Kelishiladi" va h.k.)
 SAMPLE_SERVICES = [
-    ("Soch olish", 40000, 30),
-    ("Soqol olish", 20000, 20),
-    ("Soch + soqol", 55000, 45),
-    ("Bolalar sochi", 30000, 25),
+    ("Soch olish", "40000", 30),
+    ("Soqol olish", "20000", 20),
+    ("Soch + soqol", "55 000 so'm", 45),
+    ("Bolalar sochi", "от 30 000", 25),
 ]
 
 

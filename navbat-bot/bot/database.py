@@ -52,7 +52,7 @@ class Database:
                 CREATE TABLE IF NOT EXISTS services (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
                     name        TEXT    NOT NULL,
-                    price       INTEGER NOT NULL DEFAULT 0,
+                    price       TEXT    NOT NULL DEFAULT '',
                     duration    INTEGER NOT NULL DEFAULT 30,
                     is_active   INTEGER NOT NULL DEFAULT 1
                 );
@@ -83,12 +83,17 @@ class Database:
     # XIZMATLAR (services)
     # ---------------------------------------------------------------
 
-    def add_service(self, name: str, price: int = 0, duration: int = 30) -> int:
-        """Yangi xizmat qo'shadi. Qo'shilgan xizmat id'sini qaytaradi."""
+    def add_service(self, name: str, price: str = "", duration: int = 30) -> int:
+        """
+        Yangi xizmat qo'shadi. Qo'shilgan xizmat id'sini qaytaradi.
+
+        price — erkin matn bo'lishi mumkin: "40000", "50 000 so'm",
+        "от 30 000", "$20", "Kelishiladi" va h.k. Bo'sh bo'lsa narx ko'rsatilmaydi.
+        """
         with self._connect() as conn:
             cur = conn.execute(
                 "INSERT INTO services (name, price, duration) VALUES (?, ?, ?)",
-                (name, price, duration),
+                (name, str(price), duration),
             )
             return cur.lastrowid
 

@@ -48,22 +48,39 @@ def format_datetime(dt: datetime, today: date | None = None) -> str:
     return f"{format_day(dt.date(), today)} {format_time(dt)}"
 
 
-def format_price(price: int) -> str:
+def format_price(price) -> str:
     """
-    Narxni chiroyli ko'rsatadi: 40000 -> "40 000 so'm".
-    0 bo'lsa narx ko'rsatilmaydi.
+    Narxni chiroyli ko'rsatadi.
+
+    - Bo'sh bo'lsa ("", 0, None) -> "" (narx ko'rsatilmaydi)
+    - Toza raqam bo'lsa: "40000" yoki 40000 -> "40 000 so'm"
+    - Matn/belgili bo'lsa: "от 30 000", "$20", "Kelishiladi" -> o'zgartirilmasdan
     """
-    if not price:
+    if price is None:
         return ""
-    # Mingliklarni probel bilan ajratamiz
-    s = f"{price:,}".replace(",", " ")
-    return f"{s} so'm"
+
+    s = str(price).strip()
+    if not s or s == "0":
+        return ""
+
+    # Toza raqammi? (faqat raqam va probellardan iborat, masalan "40000" yoki "40 000")
+    digits_only = s.replace(" ", "")
+    if digits_only.isdigit():
+        n = int(digits_only)
+        if n == 0:
+            return ""
+        pretty = f"{n:,}".replace(",", " ")
+        return f"{pretty} so'm"
+
+    # Aks holda — admin nima yozgan bo'lsa, shuni qoldiramiz (belgilar saqlanadi)
+    return s
 
 
-def service_label(name: str, price: int, duration: int) -> str:
+def service_label(name: str, price, duration: int) -> str:
     """
     Xizmat tugmasi uchun yorliq:
     "Soch olish — 40 000 so'm · 30 daq"
+    price — son yoki matn bo'lishi mumkin.
     """
     parts = [name]
     p = format_price(price)

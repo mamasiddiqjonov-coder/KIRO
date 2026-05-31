@@ -191,17 +191,25 @@ class AdminHandlers:
             return ADD_NAME
         context.user_data["new_name"] = name
         await update.message.reply_text(
-            f"«{name}» narxini so'mda kiriting (masalan: 40000).\n"
-            "Narx bo'lmasa 0 kiriting:"
+            f"«{name}» narxini kiriting.\n\n"
+            "Masalan: 40000  yoki  50 000 so'm  yoki  от 30 000  yoki  $20\n"
+            "Narx bo'lmasa yoki yozmoqchi bo'lmasangiz «-» (chiziqcha) kiriting:"
         )
         return ADD_PRICE
 
     async def add_price(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        text = update.message.text.strip().replace(" ", "")
-        if not text.isdigit():
-            await update.message.reply_text("Narx faqat raqam bo'lsin. Qaytadan:")
+        text = update.message.text.strip()
+        # «-» yoki «0» -> narxsiz
+        if text in ("-", "0", "—"):
+            text = ""
+        # Narx erkin matn: belgilar, valyuta, "Kelishiladi" — hammasi mumkin.
+        # Faqat juda uzun bo'lib ketmasligi uchun cheklov qo'yamiz.
+        if len(text) > 50:
+            await update.message.reply_text(
+                "Narx juda uzun (50 belgidan oshmasin). Qaytadan kiriting:"
+            )
             return ADD_PRICE
-        context.user_data["new_price"] = int(text)
+        context.user_data["new_price"] = text
         await update.message.reply_text(
             "Xizmat necha daqiqa davom etadi? (masalan: 30)"
         )
