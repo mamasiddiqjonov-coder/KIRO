@@ -29,6 +29,7 @@ from bot.database import Database
 from bot.booking import BookingManager
 from bot.handlers import ClientHandlers
 from bot.admin import AdminHandlers, ADD_NAME, ADD_PRICE, ADD_DURATION
+from bot.reminders import ReminderService
 
 
 # Log sozlamasi — terminalda nima bo'layotganini ko'rsatadi
@@ -105,6 +106,9 @@ def main():
     app.add_handler(CallbackQueryHandler(client.on_cancel_booking, pattern=r"^cancel:"))
     app.add_handler(CallbackQueryHandler(client.on_back_to_services, pattern=r"^back:services$"))
 
+    # Telefon raqamni qabul qilish (mijoz kontaktini ulashganda)
+    app.add_handler(MessageHandler(filters.CONTACT, client.on_contact))
+
     # ============ ADMIN buyruqlari ============
     app.add_handler(CommandHandler("admin", admin.admin_menu))
     app.add_handler(MessageHandler(
@@ -132,6 +136,31 @@ def main():
 
     # Xatolarni ushlash
     app.add_error_handler(on_error)
+
+    # --- Eslatma tizimi (JobQueue) ---
+    # Bot belgilangan oraliqda bazani tekshirib, yaqinlashayotgan
+    # navbatlar uchun mijozlarga eslatma yuboradi.
+    reminder = ReminderService(
+        db,
+        business_name=config.BUSINESS_NAME,
+        lead_minutes=getattr(config, "REMINDER_LEAD_MINUTES", 60),
+    )
+    check_minutes = getattr(config, "REMINDER_CHECK_MINUTES", 5)
+    if app.job_queue is not None:
+        app.job_queue.run_repeating(
+            reminder.check_and_send,
+            interval=check_minutes * 60,  # soniyaga aylantiramiz
+            first=10,  # ishga tushgach 10 soniyadan keyin birinchi tekshiruv
+        )
+        logger.info(
+            "Eslatma tizimi yoqildi (har %s daqiqada, %s daqiqa oldin eslatadi).",
+            check_minutes, reminder.lead_minutes,
+        )
+    else:
+        logger.warning(
+            "JobQueue mavjud emas — eslatma ishlamaydi. "
+            "O'rnating: pip install \"python-telegram-bot[job-queue]\""
+        )
 
     # --- Ishga tushiramiz ---
     logger.info("Bot ishga tushdi. To'xtatish uchun Ctrl+C bosing.")

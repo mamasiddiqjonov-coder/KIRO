@@ -17,6 +17,7 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
     KeyboardButton,
 )
 from telegram.ext import ContextTypes
@@ -34,6 +35,13 @@ MAIN_KB = ReplyKeyboardMarkup(
         ["ℹ️ Ma'lumot"],
     ],
     resize_keyboard=True,
+)
+
+# Telefon raqam so'rash uchun klaviatura (Telegram kontaktni ulashadi)
+PHONE_KB = ReplyKeyboardMarkup(
+    [[KeyboardButton("📱 Raqamni ulashish", request_contact=True)]],
+    resize_keyboard=True,
+    one_time_keyboard=True,
 )
 
 
@@ -258,17 +266,57 @@ class ClientHandlers:
         # Holatni tozalaymiz
         context.user_data.clear()
 
-        # Adminlarga xabar berish uchun ma'lumotni context.bot_data orqali
-        # main.py da ulangan admin xabarnomasiga uzatamiz (ixtiyoriy).
+        # Telefon raqami yo'q bo'lsa — so'raymiz (egasi bog'lana olishi uchun)
+        client = self.db.get_client_by_tg(user.id)
+        if client is None or not client["phone"]:
+            await context.bot.send_message(
+                chat_id=user.id,
+                text=(
+                    "📱 Iltimos, telefon raqamingizni qoldiring — "
+                    "zarur bo'lsa siz bilan bog'lanamiz.\n\n"
+                    "Pastdagi tugmani bosing:"
+                ),
+                reply_markup=PHONE_KB,
+            )
+
+        # Adminlarga xabar berish (telefon bo'lsa, u ham ko'rsatiladi)
+        phone = client["phone"] if client and client["phone"] else "—"
         notify = context.bot_data.get("notify_admins")
         if notify:
             await notify(
                 context,
                 f"🆕 Yangi navbat!\n"
                 f"👤 {user.full_name}\n"
+                f"📱 {phone}\n"
                 f"🔹 {service['name']}\n"
                 f"🕒 {utils.format_datetime(start)}",
             )
+
+    # ===============================================================
+    # Telefon raqamni qabul qilish
+    # ===============================================================
+
+    async def on_contact(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Mijoz «Raqamni ulashish» tugmasini bosganda ishga tushadi.
+        Telegram kontakt ma'lumotini yuboradi — biz raqamni saqlaymiz.
+        """
+        contact = update.message.contact
+        user = update.effective_user
+
+        # Faqat o'z raqamini ulashganini qabul qilamiz (boshqaniki emas)
+        if contact.user_id and contact.user_id != user.id:
+            await update.message.reply_text(
+                "Iltimos, o'zingizning raqamingizni ulashing.",
+                reply_markup=PHONE_KB,
+            )
+            return
+
+        self.db.set_client_phone(user.id, contact.phone_number)
+        await update.message.reply_text(
+            "✅ Rahmat! Raqamingiz saqlandi.",
+            reply_markup=MAIN_KB,
+        )
 
     # ===============================================================
     # Mening navbatlarim + bekor qilish

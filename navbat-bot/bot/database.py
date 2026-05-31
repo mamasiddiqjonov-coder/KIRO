@@ -45,7 +45,7 @@ class Database:
             conn.close()
 
     def _init_tables(self):
-        """Jadvallar mavjud bo'lmasa, yaratadi."""
+        """Jadvallar mavjud bo'lmasa, yaratadi. Kerak bo'lsa migratsiya qiladi."""
         with self._connect() as conn:
             conn.executescript(
                 """
@@ -72,11 +72,25 @@ class Database:
                     start_time  TEXT    NOT NULL,
                     end_time    TEXT    NOT NULL,
                     status      TEXT    NOT NULL DEFAULT 'active',
+                    reminded    INTEGER NOT NULL DEFAULT 0,
                     created_at  TEXT    NOT NULL,
                     FOREIGN KEY (client_id)  REFERENCES clients(id),
                     FOREIGN KEY (service_id) REFERENCES services(id)
                 );
                 """
+            )
+            self._migrate(conn)
+
+    def _migrate(self, conn):
+        """
+        Eski bazalarni yangi tuzilishga moslaydi (ma'lumotni yo'qotmasdan).
+        Yangi ustun qo'shilgan bo'lsa, eski bazada uni ham yaratadi.
+        """
+        # bookings jadvalida 'reminded' ustuni bormi?
+        cols = {row["name"] for row in conn.execute("PRAGMA table_info(bookings)")}
+        if "reminded" not in cols:
+            conn.execute(
+                "ALTER TABLE bookings ADD COLUMN reminded INTEGER NOT NULL DEFAULT 0"
             )
 
     # ---------------------------------------------------------------
@@ -165,6 +179,13 @@ class Database:
             return conn.execute(
                 "SELECT * FROM clients WHERE tg_id = ?", (tg_id,)
             ).fetchone()
+
+    def set_client_phone(self, tg_id: int, phone: str) -> None:
+        """Mijozning telefon raqamini saqlaydi/yangilaydi."""
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE clients SET phone = ? WHERE tg_id = ?", (phone, tg_id)
+            )
 
     # ---------------------------------------------------------------
     # BRONLAR (bookings)
@@ -259,4 +280,42 @@ class Database:
             conn.execute(
                 "UPDATE bookings SET status = ? WHERE id = ?",
                 (STATUS_CANCELLED, booking_id),
+            )
+
+    # ---------------------------------------------------------------
+    # ESLATMALAR (reminders)
+    # ---------------------------------------------------------------
+
+    def get_bookings_to_remind(
+        self, now: datetime, until: datetime
+    ) -> list[sqlite3.Row]:
+        """
+        Eslatma yuborilishi kerak bo'lgan bronlarni qaytaradi.
+
+        Shartlar:
+        - faol bron (status = active)
+        - hali eslatma yuborilmagan (reminded = 0)
+        - boshlanishi 'now' dan keyin, lekin 'until' dan oldin
+          (ya'ni keyingi 1 soat ichida boshlanadi)
+
+        Mijozning tg_id, ismi va xizmat nomi bilan birga qaytaradi.
+        """
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT b.*, s.name AS service_name, "
+                "c.tg_id AS client_tg, c.name AS client_name "
+                "FROM bookings b "
+                "JOIN services s ON s.id = b.service_id "
+                "JOIN clients c ON c.id = b.client_id "
+                "WHERE b.status = ? AND b.reminded = 0 "
+                "AND b.start_time > ? AND b.start_time <= ? "
+                "ORDER BY b.start_time",
+                (STATUS_ACTIVE, now.isoformat(), until.isoformat()),
+            ).fetchall()
+
+    def mark_reminded(self, booking_id: int) -> None:
+        """Bron uchun eslatma yuborilgani belgilaydi (qayta yubormaslik uchun)."""
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE bookings SET reminded = 1 WHERE id = ?", (booking_id,)
             )

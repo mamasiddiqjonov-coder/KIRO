@@ -30,5 +30,12 @@ DEFAULT_SLOT_MINUTES = 30
 # Necha kun oldindan bron qilish mumkin
 BOOKING_DAYS_AHEAD = 7
 
+# --- Eslatma (reminder) sozlamalari ---
+# Navbatdan necha daqiqa oldin mijozga eslatma yuborilsin
+REMINDER_LEAD_MINUTES = 60     # 1 soat oldin
+
+# Bot bazani har necha daqiqada tekshirsin (eslatma yuborish uchun)
+REMINDER_CHECK_MINUTES = 5
+
 # Ma'lumotlar bazasi fayli
 DB_PATH = "navbat.db"
